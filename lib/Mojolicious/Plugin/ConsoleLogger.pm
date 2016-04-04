@@ -37,7 +37,7 @@ sub register {
     after_dispatch => sub {
       my $self = shift;
       # Patched Nov 23, 2014 to work with JSON
-      return if $self->res->headers->content_type eq 'application/json';
+      return if index($self->res->headers->content_type,'application/json') >= 0;
       my $logs = $plugin->logs;
 
       # Leave static content untouched
