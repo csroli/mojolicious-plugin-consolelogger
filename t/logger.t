@@ -9,7 +9,7 @@ use Mojolicious::Lite;
 
 plugin 'ConsoleLogger';
 
-get '/:template' => sub {
+sub setup_log {
   my $self = shift;
   app->log->info('info');
   app->log->debug('debug');
@@ -20,23 +20,36 @@ get '/:template' => sub {
   $self->config(config => 'value');
   $self->stash(stash => 'value');
   $self->flash(flash => 'value');
+}
 
-	if(exists $self->stash->{template}){
-		# No need to duplicate all the log related calls
-		if($self->stash->{template} eq "json"){
-			$self->res->headers->content_type("application/json");
-			$self->render(json => 'json text response');
-		}elsif($self->stash->{template} eq "json_with_charset"){
-			$self->res->headers->content_type("application/json;charset=UTF-8");
-			$self->render(json => 'json text response');
-		}else{
-			$self->render($self->stash->{template});
-		}
-  }
+get '/json' => sub {
+  my $self = shift;
+	setup_log($self);
+	$self->res->headers->content_type("application/json");
+	$self->render(json => 'json text response');
+};
 
+get '/json_with_charset' => sub {
+  my $self = shift;
+	setup_log($self);
+	$self->res->headers->content_type("application/json;charset=UTF-8");
+	$self->render(json => 'json text response');
+};
+
+get '/redirected' => sub {
+  my $self = shift;
+	setup_log($self);
+	$self->redirect_to('/json');
+};
+
+get '/:template' => sub {
+  my $self = shift;
+	setup_log($self);
+	$self->render($self->stash->{template});
   # Template not found, generates exception
   $self->rendered;
 };
+
 
 # Tests
 my $t = Test::Mojo->new;
@@ -83,6 +96,11 @@ $t->get_ok('/json')->status_is(200)->content_is('"json text response"');
 
 # No script tag in json response with charset in content-type
 $t->get_ok('/json_with_charset')->status_is(200)->content_is('"json text response"');
+
+$t->ua->max_redirects(0);
+# No need to display console log during redirection
+$t->get_ok('/redirected')->status_is(302)->content_is('');
+$t->ua->max_redirects(1);
 
 done_testing;
 __DATA__
